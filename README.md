@@ -1,6 +1,9 @@
-# Finality Provider Pub Rand Contract
+# Babylon EOTS Verifier Contract
 
-This repo contains the Solidity contracts that allow Babylon finality providers (FPs) to commit and verify large batches of EOTS public randomness using Merkle proofs.
+This repo contains the Solidity contracts for:
+
+1. Babylon finality providers (FPs) to commit batches of EOTS public randomness
+2. Clients to verify EOTS signatures and randomness commitments
 
 ## Usage
 
@@ -14,4 +17,5 @@ $ forge build
 
 ```shell
 $ forge test
+$ npx hardhat test
 ```
