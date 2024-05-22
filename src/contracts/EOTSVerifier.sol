@@ -8,13 +8,17 @@ import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";
 import { IFPOracle } from "../interfaces/IFPOracle.sol";
 import "../libraries/Batch.sol";
 import "../libraries/Leaf.sol";
+import "../libraries/Schnorr.sol";
 
 error InvalidBlockRange();
+error InvalidProofOfPossession();
+error MessageMismatch();
 error InvalidMerkleProof();
 
 contract EOTSVerifier is IPubRandRegistry {
   using BatchLib for BatchKey;
   using LeafLib for Leaf;
+  using SchnorrLib for bytes;
 
   mapping(BatchId => bytes32) public merkleRoots;
   mapping(BatchId => uint64) public lastCommittedBlocks;
@@ -44,7 +48,7 @@ contract EOTSVerifier is IPubRandRegistry {
     }
 
     // Verify proof of possession of fp btc key
-    _verifyProofOfPossession(proofOfPossession, batchKey);
+    _verifyProofOfPossession(proofOfPossession, batchKey, merkleRoot);
 
     // Write merkle root to storage
     merkleRoots[batchId] = merkleRoot;
@@ -58,14 +62,34 @@ contract EOTSVerifier is IPubRandRegistry {
   /// @notice Verify caller's proof of possession of finality provider btc key
   /// @param proofOfPossession Signature to prove possession of finality provider btc key
   /// @param signedMsg Signed message
-  function _verifyProofOfPossession(bytes memory proofOfPossession, BatchKey memory signedMsg)
-    internal
-    pure
-  {
-    assert(true);
-    // TODO: Implement verification logic
-    // We need to agree on format of the signed message
-    // For now, assume signed msg is keccak(fpBtcPublicKey, chainId, fromBlock, toBlock, merkleRoot)
+  function _verifyProofOfPossession(
+    bytes memory proofOfPossession,
+    BatchKey memory signedMsg,
+    bytes32 merkleRoot
+  ) internal pure {
+    // Unpack proof of possession
+    (uint8 pyp, bytes32 px, bytes32 m, bytes32 e, bytes32 s) = proofOfPossession.unpack();
+
+    // Hash calldata and check it matches the signed message
+    // TODO: confirm format of the signed message
+    // For now, we use keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    bytes32 hashedMsg = keccak256(
+      abi.encode(
+        signedMsg.chainId,
+        signedMsg.fpBtcPublicKey,
+        signedMsg.fromBlock,
+        signedMsg.toBlock,
+        merkleRoot
+      )
+    );
+    if (hashedMsg != m) {
+      revert MessageMismatch();
+    }
+
+    // Verify proof of possession
+    if (!SchnorrLib.verify(pyp, px, m, e, s)) {
+      revert InvalidProofOfPossession();
+    }
   }
 
   /// @notice Verify EOTS public randomness committed by a finality provider at given block height
@@ -78,7 +102,7 @@ contract EOTSVerifier is IPubRandRegistry {
     uint64 atBlock,
     bytes32 publicNumber,
     bytes32[] calldata merkleProof
-  ) public view {
+  ) public view returns (bool) {
     // Retrieve merkle root from storage
     BatchId batchId = batchKey.toId();
     bytes32 merkleRoot = merkleRoots[batchId];
@@ -88,9 +112,7 @@ contract EOTSVerifier is IPubRandRegistry {
     bytes32 hashedLeaf = leaf.hash();
 
     // Verify merkle proof
-    if (!MerkleProof.verify(merkleProof, merkleRoot, hashedLeaf)) {
-      revert InvalidMerkleProof();
-    }
+    return MerkleProof.verify(merkleProof, merkleRoot, hashedLeaf);
   }
 
   // function verifyEots(uint32 chainId, string[] calldata fpBtcPublicKeys, bytes[] calldata sigs)

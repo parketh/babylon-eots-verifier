@@ -17,7 +17,7 @@ interface IPubRandRegistry {
     uint64 atBlock,
     bytes32 publicNumber,
     bytes32[] calldata merkleProof
-  ) external;
+  ) external view returns (bool);
 
   /// @notice Event emitted when a new batch of EOTS public randomness is committed
   event CommitPubRandBatch(

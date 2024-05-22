@@ -1,10 +1,12 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "../src/contracts/EOTSVerifier.sol";
-import "../src/contracts/mocks/MockFPOracle.sol";
-import "../src/libraries/Batch.sol";
-import "../src/libraries/Leaf.sol";
+import "forge-std/console.sol";
+import "src/contracts/EOTSVerifier.sol";
+import "src/contracts/mocks/MockFPOracle.sol";
+import "src/libraries/Batch.sol";
+import "src/libraries/Leaf.sol";
+import "src/libraries/Schnorr.sol";
 
 abstract contract Helper {
   EOTSVerifier public eotsVerifier;
@@ -25,6 +27,12 @@ contract TestEOTSVerifier is Test, Helper {
   }
 
   function test_CommitAndVerifyPubRandBatch() public {
+    // Setup
+    uint32 chainId = 1;
+    string memory fpBtcPublicKey = "fp1";
+    uint64 fromBlock = 1;
+    uint64 toBlock = 4;
+
     // Build batch comprising of 4 leafs, from blocks 1 to 4
     bytes32 leaf1 = Leaf(1, bytes32("1111")).hash();
     bytes32 leaf2 = Leaf(2, bytes32("2222")).hash();
@@ -35,8 +43,27 @@ contract TestEOTSVerifier is Test, Helper {
     bytes32 merkleRoot = keccak256(abi.encodePacked(hash12, hash34));
 
     // Commit batch pub rand
-    BatchKey memory batchKey = BatchKey(1, "fp1", 1, 4);
-    eotsVerifier.commitPubRandBatch(batchKey, "0", merkleRoot);
+    BatchKey memory batchKey = BatchKey(chainId, fpBtcPublicKey, fromBlock, toBlock);
+    bytes32 hashedMsg =
+      keccak256(abi.encodePacked(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot));
+    console.log(
+      "chainId: %d, fpBtcPublicKey: %s, fromBlock: %d, toBlock: %d, merkleRoot: %s",
+      chainId,
+      fpBtcPublicKey,
+      fromBlock,
+      toBlock,
+      merkleRoot
+    );
+    console.logBytes32(hashedMsg);
+
+    // Generated in `TestSchnorr.js` and hardcoded here
+    uint8 parity = 0;
+    bytes32 px = "0x1234";
+    bytes32 e = "0x5678";
+    bytes32 sig = "0x9abc";
+    bytes memory proofOfPossession = SchnorrLib.pack(parity, px, hashedMsg, e, sig);
+    console.logBytes(proofOfPossession);
+    eotsVerifier.commitPubRandBatch(batchKey, proofOfPossession, merkleRoot);
 
     // Verify pub rand at each height
     bytes32[] memory proof = new bytes32[](2);
