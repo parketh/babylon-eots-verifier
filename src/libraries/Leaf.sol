@@ -10,8 +10,8 @@ struct Leaf {
 }
 
 library LeafLib {
-  /// @notice Serialize leaf to encoded data
-  function serialize(Leaf memory leaf) internal pure returns (bytes32 data) {
+  /// @notice Serialize leaf to hash
+  function hash(Leaf memory leaf) internal pure returns (bytes32) {
     return keccak256(abi.encode(leaf.blockNumber, leaf.publicNumber));
   }
 }
