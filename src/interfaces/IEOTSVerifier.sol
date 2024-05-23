@@ -3,6 +3,7 @@
 pragma solidity ^0.8.20;
 
 import { BatchKey } from "../libraries/Batch.sol";
+import { EOTSData } from "../libraries/EOTS.sol";
 
 interface IEOTSVerifier {
   /// @notice Verify EOTS signatures from finality providers at given block height
@@ -10,18 +11,12 @@ interface IEOTSVerifier {
   /// @param batchKey Batch key
   /// @param atBlock Block height to verify
   /// @param outputRoot Output root of the block
-  /// @param fpBtcPublicKeys FP BTC public keys
-  /// @param pubRands FP committed pub rands
-  /// @param merkleProofs FP merkle proofs to verify committed pub rands
-  /// @param signatures FP EOTS signatures
+  /// @param data EOTS data
   /// @return isFinal Whether the block is final
   function verifyEots(
     BatchKey calldata batchKey,
     uint64 atBlock,
     bytes32 outputRoot,
-    bytes[] calldata fpBtcPublicKeys,
-    bytes32[] calldata pubRands,
-    bytes32[][] calldata merkleProofs,
-    bytes[] calldata signatures
+    EOTSData[] calldata data
   ) external returns (bool);
 }
