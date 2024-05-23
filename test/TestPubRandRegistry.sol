@@ -13,7 +13,7 @@ abstract contract Helper {
   MockFPOracle public fpOracle;
 }
 
-contract TestEOTSVerifier is Test, Helper {
+contract TestPubRandRegistry is Test, Helper {
   using LeafLib for Leaf;
 
   function setUp() public {
@@ -62,7 +62,21 @@ contract TestEOTSVerifier is Test, Helper {
     require(eotsVerifier.verifyPubRandAtBlock(batchKey, 1, "1111", proof), "Invalid merkle proof");
   }
 
-  function test_RevertIfIncorrectPubRand() public {
+  function test_RevertIfIncorrectProofOfPossession() public {
+    // Build batch comprising of 2 leafs, from blocks 1 to 2
+    bytes32 leaf1 = Leaf(1, bytes32("1111")).hash();
+    bytes32 leaf2 = Leaf(2, bytes32("2222")).hash();
+    bytes32 merkleRoot = keccak256(abi.encodePacked(leaf1, leaf2));
+
+    // Pass in random proof of possession
+    BatchKey memory batchKey = BatchKey(1, "fp1", 1, 2);
+    bytes memory wrongProofOfPossession =
+      hex"000000000000000000000000000000000000000000000000000000000000001c674c62bf12e0a822406347f5731cb2a5bde98dd9161b37c2a3745cfe8af37da0f61df6719895921b59bda45d7b16511ad2641ed6bbffd224feba9dd4af291e2a23f4fc75f258ad93758e900dc0632a071baec011ac309d2f6cd8b210a7d7c25e1f6dbf3979edf4418d5c9220737cea69e1f7947bc68a660be283e1d5f07c1812";
+    vm.expectRevert(abi.encodeWithSignature("InvalidProofOfPossession()"));
+    eotsVerifier.commitPubRandBatch(batchKey, wrongProofOfPossession, merkleRoot);
+  }
+
+  function test_IncorrectPubRand() public {
     // Setup
     uint32 chainId = 1;
     string memory fpBtcPublicKey = "fp1";
