@@ -3,8 +3,19 @@
 pragma solidity ^0.8.20;
 
 interface IFPOracle {
-  /// @notice Get total voting power amongst all finality providers of a given chain
-  function getVotingPower(uint32 chainId) external view returns (uint64);
-  /// @notice Get the voting power of a specific finality provider
-  function getVotingPower(uint32 chainId, string calldata fpBtcPublicKey) external view returns (uint64);
+  /// @notice Get total voting power of all finality providers for given chain and block height
+  /// @param chainId Chain ID
+  /// @param atBlock Block height
+  /// @return Total voting power
+  function getVotingPower(uint32 chainId, uint64 atBlock) external view returns (uint64);
+
+  /// @notice Get voting power of specific finality provider for given chain and block height
+  /// @param chainId Chain ID
+  /// @param atBlock Block height
+  /// @param fpBtcPublicKey Finality provider BTC public key
+  /// @return Voting power of the finality provider
+  function getVotingPower(uint32 chainId, uint64 atBlock, string calldata fpBtcPublicKey)
+    external
+    view
+    returns (uint64);
 }

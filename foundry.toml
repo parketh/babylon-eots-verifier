@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib", "node_modules"]
+via-ir = true
 
 [fmt]
 line_length = 100
