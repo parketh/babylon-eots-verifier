@@ -12,6 +12,7 @@ interface IEOTSVerifier {
   /// @param outputRoot Output root of the block
   /// @param fpBtcPublicKeys FP BTC public keys
   /// @param pubRands FP committed pub rands
+  /// @param merkleProofs FP merkle proofs to verify committed pub rands
   /// @param signatures FP EOTS signatures
   function verifyEots(
     BatchKey calldata batchKey,
@@ -19,6 +20,7 @@ interface IEOTSVerifier {
     bytes32 outputRoot,
     bytes[] calldata fpBtcPublicKeys,
     bytes32[] calldata pubRands,
+    bytes32[][] calldata merkleProofs,
     bytes[] calldata signatures
   ) external;
 }
