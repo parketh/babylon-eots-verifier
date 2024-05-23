@@ -14,6 +14,7 @@ interface IEOTSVerifier {
   /// @param pubRands FP committed pub rands
   /// @param merkleProofs FP merkle proofs to verify committed pub rands
   /// @param signatures FP EOTS signatures
+  /// @return isFinal Whether the block is final
   function verifyEots(
     BatchKey calldata batchKey,
     uint64 atBlock,
@@ -22,5 +23,5 @@ interface IEOTSVerifier {
     bytes32[] calldata pubRands,
     bytes32[][] calldata merkleProofs,
     bytes[] calldata signatures
-  ) external;
+  ) external returns (bool);
 }

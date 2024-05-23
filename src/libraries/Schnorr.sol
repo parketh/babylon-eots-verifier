@@ -17,12 +17,12 @@ pragma solidity ^0.8.20;
 //       5. Hashed message m
 //    2. Generate random nonce k and compute corresponding point on curve R = k * G
 //    3. Compute Re = address(R), the lower 160 bits of H(Rx || Ry)
-//    3. Compute the challenge, e = H(Px || Pyp || m || address(R))
+//    3. Compute the challenge, e = H(Px || Pyp || m || Re)
 //    4. Compute the signature, s = (k + e * x) % Q
 //    5. Return signature (R, s)
 //
 //   Verification
-//    1. Given inputs: Px, Pyp, s, m, address(R)
+//    1. Given inputs: Px, Pyp, s, m, Re
 //    2. Recompute the challenge, e, as above
 //    3. Verify that s * G = R + e * P
 //

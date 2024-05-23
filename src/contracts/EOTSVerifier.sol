@@ -15,8 +15,10 @@ error InvalidBlockRange();
 error InvalidProofOfPossession();
 error MessageMismatch();
 error InvalidMerkleProof();
+error PubRandMismatch();
+error InputLengthMismatch();
 
-contract EOTSVerifier is IPubRandRegistry {
+contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
   using BatchLib for BatchKey;
   using LeafLib for Leaf;
   using SchnorrLib for bytes;
@@ -120,7 +122,7 @@ contract EOTSVerifier is IPubRandRegistry {
   }
 
   /// @notice Verify EOTS signatures from finality providers at given block height
-  /// @notice This fn is called by a client or rollup contract to provide fast finality
+  /// @notice Called by a client or rollup contract to provide fast finality
   /// @param batchKey Batch key
   /// @param atBlock Block height to verify
   /// @param outputRoot Output root of the block
@@ -128,6 +130,7 @@ contract EOTSVerifier is IPubRandRegistry {
   /// @param pubRands FP committed pub rands
   /// @param merkleProofs FP merkle proofs to verify committed pub rands
   /// @param signatures FP EOTS signatures
+  /// @return isFinal Whether the block is final
   function verifyEots(
     BatchKey calldata batchKey,
     uint64 atBlock,
@@ -136,16 +139,54 @@ contract EOTSVerifier is IPubRandRegistry {
     bytes32[] calldata pubRands,
     bytes32[][] calldata merkleProofs,
     bytes[] calldata signatures
-  ) external {
-    // Validity checks
-    // Check arrays are of equal length
-    // Check block is in the past
-    // Check block is within the batch range
+  ) external view returns (bool) {
+    // Perform validity checks
+    if (
+      fpBtcPublicKeys.length != pubRands.length || fpBtcPublicKeys.length != merkleProofs.length
+        || fpBtcPublicKeys.length != signatures.length
+    ) {
+      revert InputLengthMismatch();
+    }
+    if (atBlock < batchKey.fromBlock || atBlock > batchKey.toBlock || atBlock > block.number) {
+      revert InvalidBlockRange();
+    }
 
-    // Loop through pub rands and check against commitments
+    // Init voting power (VP) vars
+    // We can consider the block final once signers comprising 2/3 of total VP have signed off
+    uint64 thresholdVotingPower = fpOracle.getVotingPower(batchKey.chainId, atBlock) * 2 / 3;
+    uint64 sumVotingPower = 0;
 
-    // Get voting power (VP) of each finality provider, and check they sum to >2/3 total VP
+    // Loop through signers and:
+    //  1. Check pub rands against batch commitments
+    //  2. Check challenge matches committed pub rands, e = H(Px || Pyp || m || Re)
+    //  3. Verify EOTS signatures
+    for (uint256 i = 0; i < fpBtcPublicKeys.length; i++) {
+      // Unpack signature and check message
+      // TODO: confirm format of the signed message
+      (uint8 pyp, bytes32 px,, bytes32 e, bytes32 s) = signatures[i].unpack();
+      // Verify pub rand and merkle proof
+      // We expect m = outputRoot so use it in place of m to perform the check in the same step
+      bytes32 expE = keccak256(abi.encodePacked(px, pyp, outputRoot, pubRands[i]));
+      if (
+        e != expE
+          || !verifyPubRandAtBlock(batchKey, fpBtcPublicKeys[i], atBlock, pubRands[i], merkleProofs[i])
+      ) {
+        revert PubRandMismatch();
+      }
 
-    // Verify EOTS signatures
+      // Verify EOTS signature of finality provider
+      // If verified, get voting power (VP) and add to sum
+      // As above, we use outputRout in place of m
+      if (SchnorrLib.verify(pyp, px, outputRoot, e, s)) {
+        sumVotingPower += fpOracle.getVotingPower(batchKey.chainId, atBlock, fpBtcPublicKeys[i]);
+      }
+
+      // To save gas, break early if we have enough voting power
+      if (sumVotingPower >= thresholdVotingPower) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

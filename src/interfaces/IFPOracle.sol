@@ -14,7 +14,7 @@ interface IFPOracle {
   /// @param atBlock Block height
   /// @param fpBtcPublicKey Finality provider BTC public key
   /// @return Voting power of the finality provider
-  function getVotingPower(uint32 chainId, uint64 atBlock, string calldata fpBtcPublicKey)
+  function getVotingPower(uint32 chainId, uint64 atBlock, bytes calldata fpBtcPublicKey)
     external
     view
     returns (uint64);
