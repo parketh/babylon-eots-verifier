@@ -2,8 +2,9 @@
 
 pragma solidity ^0.8.20;
 
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // import "forge-std/console.sol";
+// import "hardhat/console.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IEOTSVerifier } from "../interfaces/IEOTSVerifier.sol";
 import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";
 import { IFPOracle } from "../interfaces/IFPOracle.sol";
@@ -13,8 +14,9 @@ import "../libraries/Schnorr.sol";
 import "../libraries/EOTS.sol";
 
 error InvalidBlockRange();
+error DuplicateBatch();
 error InvalidProofOfPossession();
-error MessageMismatch();
+error MessageMismatch(bytes32 expected, bytes32 actual);
 error InvalidMerkleProof();
 error PubRandMismatch();
 
@@ -55,7 +57,11 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
     // Verify proof of possession of fp btc key
     _verifyProofOfPossession(proofOfPossession, batchKey, fpBtcPublicKey, merkleRoot);
 
-    // Write merkle root to storage
+    // Check if batch already exists
+    // If not, write merkle root to storage
+    if (merkleRoots[batchId][fpBtcPublicKey] != bytes32(0)) {
+      revert DuplicateBatch();
+    }
     merkleRoots[batchId][fpBtcPublicKey] = merkleRoot;
 
     // Emit event
@@ -86,7 +92,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
       )
     );
     if (hashedMsg != m) {
-      revert MessageMismatch();
+      revert MessageMismatch(hashedMsg, m);
     }
 
     // Verify proof of possession

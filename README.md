@@ -16,6 +16,5 @@ $ forge build
 ### Test
 
 ```shell
-$ forge test
 $ npx hardhat test
 ```
