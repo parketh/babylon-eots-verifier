@@ -4,13 +4,15 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { randomBytes } = require("crypto");
 const secp256k1 = require("secp256k1");
+const bs58check = require("bs58check");
+const assert = require("assert");
 const arrayify = ethers.utils.arrayify;
 
 function sign(m, x) {
   var publicKey = secp256k1.publicKeyCreate(x);
 
   // R = G * k
-  var k = randomBytes(32);
+  var k = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
   var R = secp256k1.publicKeyCreate(k);
 
   // e = h(address(R) || compressed pubkey || m)
@@ -58,31 +60,46 @@ describe("Schnorr", function () {
     const schnorr = await Schnorr.deploy();
     await schnorr.deployed();
 
-    // generate privKey
-    let privKey;
-    do {
-      privKey = randomBytes(32);
-    } while (!secp256k1.privateKeyVerify(privKey));
+    // Hard code private key
+    const privKeyBase58 =
+      "L4wJ9vYZ8NK4HsP7MgbohfBeXR2xDQvAa7jmB6h51B7ZyferqkFV";
+    const privKey = bs58check.decode(privKeyBase58).slice(1, 33);
+    assert(secp256k1.privateKeyVerify(privKey), "Invalid private key");
+    var pubKey = secp256k1.publicKeyCreate(privKey);
 
-    var publicKey = secp256k1.publicKeyCreate(privKey);
-
-    // message
-    // TODO: use a real message
-    var m = ethers.utils.solidityKeccak256(
-      ["uint32", "string", "uint32", "uint32", "bytes32"],
-      [1, "hello", 2, 3, "0x12345678"]
+    // Define message
+    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    var msg = arrayify(
+      ethers.utils.solidityKeccak256(
+        ["uint32", "string", "uint64", "uint64", "bytes"],
+        [
+          1,
+          "fp1",
+          1,
+          4,
+          Buffer.from(
+            "ba02a7da2f60d0c30b1c2ee6158f779b488276630391f346ca734f4f249eede3",
+            "hex"
+          ),
+        ]
+      )
     );
 
-    var sig = sign(m, privKey);
+    var sig = sign(msg, privKey);
 
-    expect(
-      await schnorr.verify(
-        publicKey[0] - 2 + 27,
-        publicKey.slice(1, 33),
-        arrayify(m),
-        sig.e,
-        sig.s
-      )
-    ).to.equal(true);
+    const parity = pubKey[0] - 2 + 27;
+    const px = pubKey.slice(1, 33);
+    const e = sig.e;
+    const s = sig.s;
+
+    console.log({
+      parity,
+      px: Buffer.from(px).toString("hex"),
+      msg: Buffer.from(msg).toString("hex"),
+      e: Buffer.from(e).toString("hex"),
+      s: s.toString("hex"),
+    });
+
+    expect(await schnorr.verify(parity, px, msg, e, s)).to.equal(true);
   });
 });

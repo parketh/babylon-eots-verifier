@@ -3,6 +3,7 @@
 pragma solidity ^0.8.20;
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+// import "forge-std/console.sol";
 import { IEOTSVerifier } from "../interfaces/IEOTSVerifier.sol";
 import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";
 import { IFPOracle } from "../interfaces/IFPOracle.sol";
@@ -74,7 +75,7 @@ contract EOTSVerifier is IPubRandRegistry {
     // TODO: confirm format of the signed message
     // For now, we use keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
     bytes32 hashedMsg = keccak256(
-      abi.encode(
+      abi.encodePacked(
         signedMsg.chainId,
         signedMsg.fpBtcPublicKey,
         signedMsg.fromBlock,

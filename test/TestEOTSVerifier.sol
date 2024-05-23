@@ -46,33 +46,29 @@ contract TestEOTSVerifier is Test, Helper {
     BatchKey memory batchKey = BatchKey(chainId, fpBtcPublicKey, fromBlock, toBlock);
     bytes32 hashedMsg =
       keccak256(abi.encodePacked(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot));
-    console.log(
-      "chainId: %d, fpBtcPublicKey: %s, fromBlock: %d, toBlock: %d, merkleRoot: %s",
-      chainId,
-      fpBtcPublicKey,
-      fromBlock,
-      toBlock,
-      merkleRoot
-    );
-    console.logBytes32(hashedMsg);
 
     // Generated in `TestSchnorr.js` and hardcoded here
-    uint8 parity = 0;
-    bytes32 px = "0x1234";
-    bytes32 e = "0x5678";
-    bytes32 sig = "0x9abc";
+    uint8 parity = 28;
+    bytes32 px = 0x674c62bf12e0a822405347f5731cb2a5bde98dd9161b37c2a3745cfe8af37da0;
+    bytes32 e = 0xc594792d34a81511d19db615bc4c954e0b4d8a1cddff06e93772bb3322937f05;
+    bytes32 sig = 0xd823c622af78d2e40a513bcf2076b66137582c0a8afb47911709df4848162680;
     bytes memory proofOfPossession = SchnorrLib.pack(parity, px, hashedMsg, e, sig);
-    console.logBytes(proofOfPossession);
     eotsVerifier.commitPubRandBatch(batchKey, proofOfPossession, merkleRoot);
 
     // Verify pub rand at each height
     bytes32[] memory proof = new bytes32[](2);
     proof[0] = leaf2;
     proof[1] = hash34;
-    eotsVerifier.verifyPubRandAtBlock(batchKey, 1, "1111", proof);
+    require(eotsVerifier.verifyPubRandAtBlock(batchKey, 1, "1111", proof), "Invalid merkle proof");
   }
 
   function test_RevertIfIncorrectPubRand() public {
+    // Setup
+    uint32 chainId = 1;
+    string memory fpBtcPublicKey = "fp1";
+    uint64 fromBlock = 1;
+    uint64 toBlock = 2;
+
     // Build batch comprising of 2 leafs, from blocks 1 to 2
     bytes32 leaf1 = Leaf(1, bytes32("1111")).hash();
     bytes32 leaf2 = Leaf(2, bytes32("2222")).hash();
@@ -80,12 +76,22 @@ contract TestEOTSVerifier is Test, Helper {
 
     // Commit batch pub rand
     BatchKey memory batchKey = BatchKey(1, "fp1", 1, 2);
-    eotsVerifier.commitPubRandBatch(batchKey, "0", merkleRoot);
+    bytes32 hashedMsg =
+      keccak256(abi.encodePacked(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot));
+
+    // Generated in `TestSchnorr.js` and hardcoded here
+    uint8 parity = 28;
+    bytes32 px = 0x674c62bf12e0a822405347f5731cb2a5bde98dd9161b37c2a3745cfe8af37da0;
+    bytes32 e = 0x23f4fc75f258ad93758e900dc0632a071baec011ac309d2f6cd8b210a7d7c25e;
+    bytes32 sig = 0x1f6dbf3979edf4418d5c9220737cea69e1f7947bc68a660be283e1d5f07c1812;
+    bytes memory proofOfPossession = SchnorrLib.pack(parity, px, hashedMsg, e, sig);
+    eotsVerifier.commitPubRandBatch(batchKey, proofOfPossession, merkleRoot);
 
     // Verify with incorrect pub rand data should fail
     bytes32[] memory proof = new bytes32[](1);
     proof[0] = leaf2;
-    vm.expectRevert(abi.encodeWithSignature("InvalidMerkleProof()"));
-    eotsVerifier.verifyPubRandAtBlock(batchKey, 1, "1234", proof);
+    require(
+      !eotsVerifier.verifyPubRandAtBlock(batchKey, 1, "1234", proof), "Merkle proof should fail"
+    );
   }
 }

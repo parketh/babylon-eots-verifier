@@ -26,8 +26,8 @@ pragma solidity ^0.8.20;
 //    2. Recompute the challenge, e, as above
 //    3. Verify that s * G = R + e * P
 //
-// This library implements an amended version of the protocol to allow efficient verification 
-// inside a Solidity contract using the `ecrecover` precompile, as documented here: 
+// This library implements an amended version of the protocol to allow efficient verification
+// inside a Solidity contract using the `ecrecover` precompile, as documented here:
 // https://hackmd.io/@nZ-twauPRISEa6G9zg3XRw/SyjJzSLt9/
 //
 // And implemented here:
@@ -53,7 +53,7 @@ library SchnorrLib {
   error EcRecoverOutputZero();
 
   /// @notice Verify a message signed using the Schnorr signature scheme
-  /// @param parity Parity of the public key (0 if y-coordinate is even, 1 if odd)
+  /// @param parity Parity of the public key (27 if y-coordinate is even, 28 if odd)
   /// @param px x-coordinate of the public key
   /// @param message Hashed message
   /// @param e Challenge
@@ -111,7 +111,8 @@ library SchnorrLib {
     pure
     returns (uint8 parity, bytes32 px, bytes32 message, bytes32 e, bytes32 sig)
   {
-    if (signature.length != 130) {
+    // Encoding is padded so rounds to 160 bytes
+    if (signature.length != 160) {
       revert InvalidSignatureLength(uint8(signature.length));
     }
     (parity, px, message, e, sig) =
