@@ -7,7 +7,7 @@ const bs58check = require("bs58check");
 const assert = require("assert");
 const arrayify = ethers.utils.arrayify;
 
-const { sign } = require("./crypto.utils");
+const { sign } = require("./utils/crypto");
 
 describe("Schnorr", function () {
   it("Should verify a signature", async function () {

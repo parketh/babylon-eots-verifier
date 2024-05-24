@@ -9,7 +9,7 @@ const arrayify = ethers.utils.arrayify;
 
 const { sign, hash, encode } = require("./utils/crypto");
 
-describe("PubRandRegistry", function () {
+describe("EOTSVerifier", function () {
   // Contracts
   let fpOracle;
   let schnorrLib;
@@ -65,7 +65,7 @@ describe("PubRandRegistry", function () {
     await eotsVerifier.deployed();
   });
 
-  it("Should commit and verify a pub rand batch", async function () {
+  it("Should verify EOTS signature for single FP", async function () {
     // Hard code test Bitcoin key
     const privKeyBase58 =
       "L4wJ9vYZ8NK4HsP7MgbohfBeXR2xDQvAa7jmB6h51B7ZyferqkFV";
