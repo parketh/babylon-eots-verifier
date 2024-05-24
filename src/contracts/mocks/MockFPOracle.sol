@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-import "../../interfaces/IFPOracle.sol";
+import "src/interfaces/IFPOracle.sol";
 
 contract MockFPOracle is IFPOracle {
   mapping(uint32 => mapping(uint64 => uint64)) public totalVotingPower;
@@ -12,7 +12,7 @@ contract MockFPOracle is IFPOracle {
     return totalVotingPower[chainId][atBlock];
   }
 
-  function getVotingPower(uint32 chainId, uint64 atBlock, bytes calldata fpBtcPublicKey)
+  function getVotingPowerFor(uint32 chainId, uint64 atBlock, bytes calldata fpBtcPublicKey)
     external
     view
     returns (uint64)
@@ -24,7 +24,7 @@ contract MockFPOracle is IFPOracle {
     totalVotingPower[chainId][atBlock] = power;
   }
 
-  function setVotingPower(
+  function setVotingPowerFor(
     uint32 chainId,
     uint64 atBlock,
     bytes calldata fpBtcPublicKey,
