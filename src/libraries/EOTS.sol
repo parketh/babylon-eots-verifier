@@ -3,12 +3,18 @@
 pragma solidity ^0.8.20;
 
 struct EOTSData {
-  /// @param fpBtcPublicKeys FP BTC public keys
+  /// @param fpBtcPublicKey FP BTC public key
   bytes fpBtcPublicKey;
-  /// @param pubRands FP committed pub rands
+  /// @param pubRand FP committed pub rand
   bytes32 pubRand;
-  /// @param merkleProofs FP merkle proofs to verify committed pub rands
+  /// @param merkleProof FP merkle proof to verify committed pub rand
   bytes32[] merkleProof;
-  /// @param signatures FP EOTS signatures
-  bytes signature;
+  /// @param parity Parity of the public key
+  uint8 parity;
+  /// @param px x-coordinate of the public key
+  bytes32 px;
+  /// @param e Challenge
+  bytes32 e;
+  /// @param sig EOTS signature
+  bytes32 sig;
 }

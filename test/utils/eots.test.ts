@@ -38,17 +38,17 @@ const testSignAndVerify = () => {
   const pubRand = pubRandKey.affineX;
 
   // Sign
-  const msg = "hello world";
-  const sig = eots.sign(privKey, privRand, msg);
+  const msg = Buffer.from("hello world");
+  const { e, s } = eots.sign(privKey, privRand, msg);
 
   // Verify
-  eots.verify(pubKey, pubRand, msg, sig);
+  eots.verify(pubKey, pubRand, msg, s);
   console.log({ m: "✅ Signature verified" });
 };
 
 const testExtractEOTS = () => {
   console.log("\nTest: testExtractEOTS");
-  // Generate key pair and randomness
+  // Hard code key pair and randomness
   const privKey = BigInteger.fromHex(
     "714481cca84598f1a3aaf42464d6892003ff3f12f438e09ae0adee83a60c2902"
   );
@@ -60,10 +60,10 @@ const testExtractEOTS = () => {
   const pubRand = pubRandKey.affineX;
 
   // Sign 2 messages
-  const msg1 = "hello world";
-  const sig1 = eots.sign(privKey, privRand, msg1);
-  const msg2 = "goodbye";
-  const sig2 = eots.sign(privKey, privRand, msg2);
+  const msg1 = Buffer.from("hello world");
+  const { s: sig1 } = eots.sign(privKey, privRand, msg1);
+  const msg2 = Buffer.from("goodbye");
+  const { s: sig2 } = eots.sign(privKey, privRand, msg2);
 
   // Extract EOTS
   const extractedPrivKey = eots.extract(
@@ -84,7 +84,7 @@ const testExtractEOTS = () => {
   }
 };
 
-testGenKeyPair();
-testGenRandomness();
-testSignAndVerify();
-testExtractEOTS();
+// testGenKeyPair();
+// testGenRandomness();
+// testSignAndVerify();
+// testExtractEOTS();

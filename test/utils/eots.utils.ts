@@ -53,18 +53,43 @@ class EOTS {
   }
 
   /**
+   * Get parity of public key.
+   * @param {BigInteger} privKey - Private key
+   * @returns {ecurve.Point} pubKey - Public key as point on curve
+   */
+  getParity(pubKey: ecurve.Point): number {
+    const pubKeyBytes = this._serializeCompressed(pubKey);
+    return pubKeyBytes[0];
+  }
+
+  /**
    * Signs a message using EOTS.
    * @param {BigInteger} privKey - Private key
    * @param {BigInteger} privRand - Private randomness
-   * @param {string} msg - Message to sign
-   * @returns {string} sig - Signature
+   * @param {Buffer} msg - Message to sign
+   * @returns {{ e: BigInteger; s: BigInteger }} - Commitment and signature
    */
-  sign(privKey: BigInteger, privRand: BigInteger, msg: string): string {
+  sign(
+    privKey: BigInteger,
+    privRand: BigInteger,
+    msg: Buffer
+  ): { e: BigInteger; s: BigInteger } {
     const hash = this._hash(msg);
     return this._sign(privKey, privRand, hash);
   }
 
-  _sign(privKey_: BigInteger, privRand: BigInteger, hash: Buffer): string {
+  /**
+   * Internal function to sign a message using EOTS.
+   * @param {BigInteger} privKey - Private key
+   * @param {BigInteger} privRand - Private randomness
+   * @param {Buffer} hash - Hash of message
+   * @returns {{ e: BigInteger; s: BigInteger }} - Commitment and signature
+   */
+  _sign(
+    privKey_: BigInteger,
+    privRand: BigInteger,
+    hash: Buffer
+  ): { e: BigInteger; s: BigInteger } {
     if (privKey_.equals(BigInteger.ZERO)) {
       throw new Error("Private key 0");
     }
@@ -102,21 +127,40 @@ class EOTS {
     const e = BigInteger.fromBuffer(commitment).mod(curve.n);
 
     // s = k + e * d mod n
-    const sig = k.add(e.multiply(privKey)).mod(curve.n);
+    const s = k.add(e.multiply(privKey)).mod(curve.n);
 
-    return sig.toString(16);
+    return { e, s };
   }
 
-  verify(pubKey: ecurve.Point, pubRand: BigInteger, msg: string, sig: string) {
+  /**
+   * Verify a message signed using EOTS.
+   * @param {ecurve.Point} pubKey - Public key
+   * @param {BigInteger} pubRand - Public randomness
+   * @param {Buffer} msg - Message
+   * @param {BigInteger} sig - Signature
+   */
+  verify(
+    pubKey: ecurve.Point,
+    pubRand: BigInteger,
+    msg: Buffer,
+    sig: BigInteger
+  ) {
     const hash = this._hash(msg);
     return this._verify(pubKey, pubRand, hash, sig);
   }
 
+  /**
+   * Internal function to sign a message signed using EOTS.
+   * @param {ecurve.Point} pubKey - Public key
+   * @param {BigInteger} pubRand - Public randomness
+   * @param {Buffer} msg - Message
+   * @param {BigInteger} sig - Signature
+   */
   _verify(
     pubKey: ecurve.Point,
     pubRand: BigInteger,
     hash: Buffer,
-    sig: string
+    sig: BigInteger
   ) {
     curve.validate(pubKey);
 
@@ -144,7 +188,7 @@ class EOTS {
     const e = BigInteger.fromBuffer(commitment).negate().mod(curve.n);
 
     // R = s * G - e * P
-    const sG = curve.G.multiply(BigInteger.fromHex(sig));
+    const sG = curve.G.multiply(sig);
     const eP = pubKeyEven.multiply(e);
     const R = sG.add(eP);
 
@@ -163,26 +207,46 @@ class EOTS {
     }
   }
 
+  /**
+   * Extract private key from two EOTS signatures.
+   * @param {BigInteger} pubKey - Public key
+   * @param {BigInteger} pubRand - Public randomness
+   * @param {Buffer} msg1 - First message
+   * @param {string} sig1 - First signature
+   * @param {Buffer} msg2 - Second message
+   * @param {string} sig2 - Second signature
+   * @returns {BigInteger} privKey - Extracted private key
+   */
   extract(
     pubKey: ecurve.Point,
     pubRand: BigInteger,
-    msg1: string,
-    sig1: string,
-    msg2: string,
-    sig2: string
+    msg1: Buffer,
+    sig1: BigInteger,
+    msg2: Buffer,
+    sig2: BigInteger
   ): BigInteger {
     const hash1 = this._hash(msg1);
     const hash2 = this._hash(msg2);
     return this._extract(pubKey, pubRand, hash1, sig1, hash2, sig2);
   }
 
+  /**
+   * Internal function to extract private key from two EOTS signatures.
+   * @param {BigInteger} pubKey - Public key
+   * @param {BigInteger} pubRand - Public randomness
+   * @param {Buffer} hash1 - Hash of first message
+   * @param {BigInteger} sig1 - First signature
+   * @param {Buffer} hash2 - Hash of second message
+   * @param {BigInteger} sig2 - Second signature
+   * @returns {BigInteger} privKey - Extracted private key
+   */
   _extract(
     pubKey: ecurve.Point,
     pubRand: BigInteger,
     hash1: Buffer,
-    sig1: string,
+    sig1: BigInteger,
     hash2: Buffer,
-    sig2: string
+    sig2: BigInteger
   ): BigInteger {
     const rBytes = pubRand.toBuffer(32) as Buffer;
     let pBytes = this._serializeCompressed(pubKey);
@@ -207,8 +271,8 @@ class EOTS {
     const e2 = BigInteger.fromBuffer(commitment2).mod(curve.n);
 
     const denom = e1.subtract(e2).mod(curve.n);
-    let x = BigInteger.fromHex(sig1)
-      .subtract(BigInteger.fromHex(sig2))
+    let x = sig1
+      .subtract(sig2)
       .multiply(denom.modInverse(curve.n))
       .mod(curve.n);
 
@@ -225,10 +289,21 @@ class EOTS {
     return x;
   }
 
-  _hash(msg: string): Buffer {
+  /**
+   * Internal function to hash a message using SHA-256.
+   * @param {Buffer} msg - Message to hash
+   * @returns {Buffer} hash - Hash of message
+   */
+  _hash(msg: Buffer): Buffer {
     return crypto.createHash("sha256").update(msg).digest();
   }
 
+  /**
+   * Internal function implementing the tagged hash scheme described in BIP-340.
+   * @param {string} tag - Tag for hash
+   * @param {Buffer[]} msgs - Array of messages to hash
+   * @returns {Buffer} hash - Hash of messages
+   */
   _taggedHash(tag: string, msgs: Buffer[]): Buffer {
     const shaTag = crypto.createHash("sha256").update(tag).digest();
     const h = crypto.createHash("sha256");
@@ -241,6 +316,11 @@ class EOTS {
     return h.digest();
   }
 
+  /**
+   * Internal function to serialize a public key point to compressed format.
+   * @param {ecurve.Point} pubKey - Public key as point on curve
+   * @returns {Buffer} pubKeyBytes - Public key in compressed format
+   */
   _serializeCompressed(pubKey: ecurve.Point): Buffer {
     const x = pubKey.affineX;
     const y = pubKey.affineY;

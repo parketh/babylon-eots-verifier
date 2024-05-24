@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 // import "forge-std/console.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IEOTSVerifier } from "../interfaces/IEOTSVerifier.sol";
 import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";
@@ -19,6 +19,7 @@ error InvalidProofOfPossession();
 error MessageMismatch(bytes32 expected, bytes32 actual);
 error InvalidMerkleProof();
 error PubRandMismatch();
+error DataEmpty();
 
 contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
   using BatchLib for BatchKey;
@@ -81,7 +82,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
     bytes32 merkleRoot
   ) internal pure {
     // Unpack proof of possession
-    (uint8 pyp, bytes32 px, bytes32 m, bytes32 e, bytes32 s) = proofOfPossession.unpack();
+    (uint8 parity, bytes32 px, bytes32 m, bytes32 e, bytes32 s) = proofOfPossession.unpack();
 
     // Hash calldata and check it matches the signed message
     // TODO: confirm format of the signed message
@@ -96,7 +97,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
     }
 
     // Verify proof of possession
-    if (!SchnorrLib.verify(pyp, px, m, e, s)) {
+    if (!SchnorrLib.verify(parity, px, m, e, s)) {
       revert InvalidProofOfPossession();
     }
   }
@@ -144,6 +145,9 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
     if (atBlock < batchKey.fromBlock || atBlock > batchKey.toBlock || atBlock > block.number) {
       revert InvalidBlockRange();
     }
+    if (data.length == 0) {
+      revert DataEmpty();
+    }
 
     // Init voting power (VP) vars
     // We can consider the block final once signers comprising 2/3 of total VP have signed off
@@ -152,29 +156,25 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
 
     // Loop through signers and:
     //  1. Check pub rands against batch commitments
-    //  2. Check challenge matches committed pub rands, e = H(Px || Pyp || m || Re)
-    //  3. Verify EOTS signatures
+    //  2. Verify EOTS signatures
+    //  3. Sum voting power
     for (uint256 i = 0; i < data.length; i++) {
-      // Unpack signature and check message
-      // TODO: confirm format of the signed message
-      (uint8 pyp, bytes32 px,, bytes32 e, bytes32 s) = data[i].signature.unpack();
       // Verify pub rand and merkle proof
       // We expect m = outputRoot so use it in place of m to perform the check in the same step
-      bytes32 expE = keccak256(abi.encodePacked(px, pyp, outputRoot, data[i].pubRand));
       if (
-        e != expE
-          || !verifyPubRandAtBlock(
-            batchKey, data[i].fpBtcPublicKey, atBlock, data[i].pubRand, data[i].merkleProof
-          )
+        !verifyPubRandAtBlock(
+          batchKey, data[i].fpBtcPublicKey, atBlock, data[i].pubRand, data[i].merkleProof
+        )
       ) {
         revert PubRandMismatch();
       }
 
-      // Verify EOTS signature of finality provider
-      // If verified, get voting power (VP) and add to sum
+      // Verify EOTS signature
+      // Get voting power (VP) and add to sum
       // As above, we use outputRout in place of m
-      if (SchnorrLib.verify(pyp, px, outputRoot, e, s)) {
-        sumVotingPower += fpOracle.getVotingPower(batchKey.chainId, atBlock, data[i].fpBtcPublicKey);
+      if (SchnorrLib.verify(data[i].parity, data[i].px, outputRoot, data[i].e, data[i].sig)) {
+        sumVotingPower +=
+          fpOracle.getVotingPowerFor(batchKey.chainId, atBlock, data[i].fpBtcPublicKey);
       }
 
       // To save gas, break early if we have enough voting power
