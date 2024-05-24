@@ -1,19 +1,20 @@
 // Source: https://github.com/noot/schnorr-verify/blob/master/test/schnorr-test.js
 
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const secp256k1 = require("secp256k1");
-const bs58check = require("bs58check");
-const assert = require("assert");
-const arrayify = ethers.utils.arrayify;
+import { expect } from "chai";
+import { ethers, network } from "hardhat";
+import { Contract } from "ethers";
+import secp256k1 from "secp256k1";
+import bs58check from "bs58check";
+import assert from "assert";
+import { sign, hash, encode } from "./utils/crypto";
 
-const { sign, hash, encode } = require("./utils/crypto");
+const arrayify = ethers.utils.arrayify;
 
 describe("EOTSVerifier", function () {
   // Contracts
-  let fpOracle;
-  let schnorrLib;
-  let eotsVerifier;
+  let fpOracle: Contract;
+  let schnorrLib: Contract;
+  let eotsVerifier: Contract;
 
   // Params
   const chainId = 1;
@@ -45,7 +46,7 @@ describe("EOTSVerifier", function () {
 
   beforeEach(async function () {
     // Reset VM
-    await hre.network.provider.send("hardhat_reset");
+    await network.provider.send("hardhat_reset");
 
     // Deploy contracts
     const FPOracle = await ethers.getContractFactory("MockFPOracle");

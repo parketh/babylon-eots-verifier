@@ -1,13 +1,13 @@
 // Source: https://github.com/noot/schnorr-verify/blob/master/test/schnorr-test.js
 
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const secp256k1 = require("secp256k1");
-const bs58check = require("bs58check");
-const assert = require("assert");
-const arrayify = ethers.utils.arrayify;
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import secp256k1 from "secp256k1";
+import bs58check from "bs58check";
+import assert from "assert";
+import { sign } from "./utils/crypto";
 
-const { sign } = require("./utils/crypto");
+const arrayify = ethers.utils.arrayify;
 
 describe("Schnorr", function () {
   it("Should verify a signature", async function () {
