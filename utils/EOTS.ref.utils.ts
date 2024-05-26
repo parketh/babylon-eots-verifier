@@ -1,4 +1,5 @@
-// JS implementation based on: https://github.com/babylonchain/babylon/blob/dev/crypto/eots
+// EOTS based on Go reference implementation:
+// https://github.com/babylonchain/babylon/blob/dev/crypto/eots
 
 import secp256k1 from "secp256k1";
 import crypto from "crypto";
@@ -59,7 +60,7 @@ class EOTS {
    */
   getParity(pubKey: ecurve.Point): number {
     const pubKeyBytes = this._serializeCompressed(pubKey);
-    return pubKeyBytes[0];
+    return pubKeyBytes[0] - 2 + 27;
   }
 
   /**
@@ -70,26 +71,11 @@ class EOTS {
    * @returns {{ e: BigInteger; s: BigInteger }} - Commitment and signature
    */
   sign(
-    privKey: BigInteger,
+    privKey_: BigInteger,
     privRand: BigInteger,
     msg: Buffer
   ): { e: BigInteger; s: BigInteger } {
     const hash = this._hash(msg);
-    return this._sign(privKey, privRand, hash);
-  }
-
-  /**
-   * Internal function to sign a message using EOTS.
-   * @param {BigInteger} privKey - Private key
-   * @param {BigInteger} privRand - Private randomness
-   * @param {Buffer} hash - Hash of message
-   * @returns {{ e: BigInteger; s: BigInteger }} - Commitment and signature
-   */
-  _sign(
-    privKey_: BigInteger,
-    privRand: BigInteger,
-    hash: Buffer
-  ): { e: BigInteger; s: BigInteger } {
     if (privKey_.equals(BigInteger.ZERO)) {
       throw new Error("Private key 0");
     }
@@ -146,22 +132,6 @@ class EOTS {
     sig: BigInteger
   ) {
     const hash = this._hash(msg);
-    return this._verify(pubKey, pubRand, hash, sig);
-  }
-
-  /**
-   * Internal function to sign a message signed using EOTS.
-   * @param {ecurve.Point} pubKey - Public key
-   * @param {BigInteger} pubRand - Public randomness
-   * @param {Buffer} msg - Message
-   * @param {BigInteger} sig - Signature
-   */
-  _verify(
-    pubKey: ecurve.Point,
-    pubRand: BigInteger,
-    hash: Buffer,
-    sig: BigInteger
-  ) {
     curve.validate(pubKey);
 
     let pubKeyBytes = this._serializeCompressed(pubKey);
@@ -227,27 +197,7 @@ class EOTS {
   ): BigInteger {
     const hash1 = this._hash(msg1);
     const hash2 = this._hash(msg2);
-    return this._extract(pubKey, pubRand, hash1, sig1, hash2, sig2);
-  }
 
-  /**
-   * Internal function to extract private key from two EOTS signatures.
-   * @param {BigInteger} pubKey - Public key
-   * @param {BigInteger} pubRand - Public randomness
-   * @param {Buffer} hash1 - Hash of first message
-   * @param {BigInteger} sig1 - First signature
-   * @param {Buffer} hash2 - Hash of second message
-   * @param {BigInteger} sig2 - Second signature
-   * @returns {BigInteger} privKey - Extracted private key
-   */
-  _extract(
-    pubKey: ecurve.Point,
-    pubRand: BigInteger,
-    hash1: Buffer,
-    sig1: BigInteger,
-    hash2: Buffer,
-    sig2: BigInteger
-  ): BigInteger {
     const rBytes = pubRand.toBuffer(32) as Buffer;
     let pBytes = this._serializeCompressed(pubKey);
     pBytes = Buffer.from(new Uint8Array(pBytes).slice(1));

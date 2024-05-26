@@ -5,11 +5,12 @@ import { ethers } from "hardhat";
 import secp256k1 from "secp256k1";
 import bs58check from "bs58check";
 import assert from "assert";
-import { sign } from "./utils/crypto";
+import BigInteger from "bigi";
+import { sign } from "../utils/schnorr.utils";
 
 const arrayify = ethers.utils.arrayify;
 
-describe("Schnorr", function () {
+describe("SchnorrLib", function () {
   it("Should verify a signature", async function () {
     const SchnorrLib = await ethers.getContractFactory("SchnorrLib");
     const schnorrLib = await SchnorrLib.deploy();
@@ -32,7 +33,7 @@ describe("Schnorr", function () {
 
     // Define message
     // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
-    var msg = arrayify(
+    const msg = arrayify(
       ethers.utils.solidityKeccak256(
         ["uint32", "string", "uint64", "uint64", "bytes"],
         [
@@ -48,20 +49,15 @@ describe("Schnorr", function () {
       )
     );
 
-    var sig = sign(msg, privKey);
+    const privRand = BigInteger.fromHex(
+      "18261145a75807f4543d82d61ca362ff85785fd3193c4ab72a848d2f70565b47"
+    );
+    var sig = sign(privKey, privRand.toBuffer(32), msg);
 
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(1, 33);
     const e = sig.e;
     const s = sig.s;
-
-    // console.log({
-    //   parity,
-    //   px: Buffer.from(px).toString("hex"),
-    //   msg: Buffer.from(msg).toString("hex"),
-    //   e: Buffer.from(e).toString("hex"),
-    //   s: s.toString("hex"),
-    // });
 
     expect(await schnorr.verify(parity, px, msg, e, s)).to.equal(true);
   });

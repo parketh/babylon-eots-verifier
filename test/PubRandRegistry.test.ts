@@ -1,5 +1,3 @@
-// Source: https://github.com/noot/schnorr-verify/blob/master/test/schnorr-test.js
-
 import { Contract } from "ethers";
 
 import { expect } from "chai";
@@ -7,7 +5,7 @@ import { ethers, network } from "hardhat";
 import secp256k1 from "secp256k1";
 import bs58check from "bs58check";
 import assert from "assert";
-import { sign, hash, encode } from "./utils/crypto";
+import { sign, hash, encode } from "../utils/schnorr.utils";
 
 const arrayify = ethers.utils.arrayify;
 
@@ -85,7 +83,8 @@ describe("PubRandRegistry", function () {
     );
 
     // Sign message
-    const sig = sign(msg, privKey);
+    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const sig = sign(privKey, privRand, msg);
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(1, 33);
     const e = sig.e;
@@ -139,7 +138,8 @@ describe("PubRandRegistry", function () {
 
     // Sign message
     // Build wrong proof of possession
-    const sig = sign(msg, privKey);
+    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const sig = sign(privKey, privRand, msg);
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(0, 32); // deliberately use the wrong pubkey
     const e = sig.e;
@@ -183,7 +183,8 @@ describe("PubRandRegistry", function () {
     );
 
     // Sign message and build proof of possession
-    const sig = sign(msg, privKey);
+    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const sig = sign(privKey, privRand, msg);
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(1, 33);
     const e = sig.e;
@@ -233,7 +234,8 @@ describe("PubRandRegistry", function () {
     );
 
     /// Sign message
-    const sig = sign(msg, privKey);
+    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const sig = sign(privKey, privRand, msg);
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(1, 33);
     const e = sig.e;

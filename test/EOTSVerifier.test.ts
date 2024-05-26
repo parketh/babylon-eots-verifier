@@ -1,15 +1,11 @@
-// Source: https://github.com/noot/schnorr-verify/blob/master/test/schnorr-test.js
-
-import { expect } from "chai";
-import { ethers, network } from "hardhat";
-import { Contract } from "ethers";
+import { ethers } from "hardhat";
 import secp256k1 from "secp256k1";
 import assert from "assert";
 import bs58check from "bs58check";
 import BigInteger from "bigi";
 
-import EOTS from "./utils/eots.utils";
-import { sign, hash, encode } from "./utils/crypto";
+import EOTS from "../utils/EOTS.evm.utils";
+import { sign, hash, encode } from "../utils/schnorr.utils";
 
 const arrayify = ethers.utils.arrayify;
 
@@ -101,8 +97,9 @@ describe("EOTSVerifier", function () {
 
     // Sign message
     const pubKeyAsPoint = eots.getPublicKeyAsPoint(privKey);
-    const sig = sign(msg, privKeyUint8Array);
-    const parity = eots.getParity(pubKeyAsPoint) - 2 + 27;
+    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const sig = sign(privKeyUint8Array, privRand, msg);
+    const parity = eots.getParity(pubKeyAsPoint);
     const px = pubKeyAsPoint.affineX;
     const proofOfPossession = encode(
       ["uint8", "bytes32", "bytes32", "bytes32", "bytes32"],
