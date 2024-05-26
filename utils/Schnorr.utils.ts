@@ -141,8 +141,17 @@ const hash = (types: string[], values: any[]): Uint8Array => {
   );
 };
 
+const orderedHash = (
+  valueA: Buffer | Uint8Array,
+  valueB: Buffer | Uint8Array
+): Uint8Array => {
+  return Buffer.from(valueA).compare(valueB) < 0
+    ? hash(["bytes32", "bytes32"], [valueA, valueB])
+    : hash(["bytes32", "bytes32"], [valueB, valueA]);
+};
+
 const encode = (types: string[], values: any[]) => {
   return ethers.utils.defaultAbiCoder.encode(types, values);
 };
 
-export { sign, verify, hash, encode };
+export { sign, verify, hash, orderedHash, encode, enforcePrefix };

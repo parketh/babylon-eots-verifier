@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-// import "forge-std/console.sol";
 import "hardhat/console.sol";
+
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IEOTSVerifier } from "../interfaces/IEOTSVerifier.sol";
 import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";

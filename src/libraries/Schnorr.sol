@@ -84,6 +84,7 @@ library SchnorrLib {
 
     // Verify the signature
     address Z = ecrecover(sp, parity, px, ep);
+
     if (Z == address(0)) {
       revert EcRecoverOutputZero();
     }

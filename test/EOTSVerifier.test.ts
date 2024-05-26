@@ -5,7 +5,7 @@ import bs58check from "bs58check";
 import BigInteger from "bigi";
 
 import EOTS from "../utils/EOTS.evm.utils";
-import { sign, hash, encode } from "../utils/schnorr.utils";
+import { sign, hash, encode, orderedHash } from "../utils/schnorr.utils";
 
 const arrayify = ethers.utils.arrayify;
 
@@ -82,9 +82,9 @@ describe("EOTSVerifier", function () {
       ["uint64", "bytes32"],
       [fromBlock + 3, pubRand8.toBuffer(32)]
     );
-    const hash56 = hash(["bytes32", "bytes32"], [leaf5, leaf6]);
-    const hash78 = hash(["bytes32", "bytes32"], [leaf7, leaf8]);
-    const merkleRoot = hash(["bytes32", "bytes32"], [hash56, hash78]);
+    const hash56 = orderedHash(leaf5, leaf6);
+    const hash78 = orderedHash(leaf7, leaf8);
+    const merkleRoot = orderedHash(hash56, hash78);
 
     // Define message
     // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)

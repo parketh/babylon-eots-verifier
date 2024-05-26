@@ -5,7 +5,14 @@ import { ethers, network } from "hardhat";
 import secp256k1 from "secp256k1";
 import bs58check from "bs58check";
 import assert from "assert";
-import { sign, hash, encode } from "../utils/schnorr.utils";
+import BigInteger from "bigi";
+import {
+  sign,
+  hash,
+  encode,
+  enforcePrefix,
+  orderedHash,
+} from "../utils/schnorr.utils";
 
 const arrayify = ethers.utils.arrayify;
 
@@ -21,27 +28,27 @@ describe("PubRandRegistry", function () {
   const toBlock = 8;
 
   // Public randomness by block
-  const pubRand5 = ethers.utils.formatBytes32String(
-    "random byte array with num 0005"
-  );
-  const pubRand6 = ethers.utils.formatBytes32String(
-    "random byte array with num 0006"
-  );
-  const pubRand7 = ethers.utils.formatBytes32String(
-    "random byte array with num 0007"
-  );
-  const pubRand8 = ethers.utils.formatBytes32String(
-    "random byte array with num 0008"
-  );
+  const pubRand5 = BigInteger.fromHex(
+    "08181dd42658f82d31b6cff6466740a64deb11fddff3a90ff06b9c34395ca5a2"
+  ).toBuffer(32);
+  const pubRand6 = BigInteger.fromHex(
+    "a5edbfddefefe11a477ee02aca6f53eb1da567f72ca40777738174273a38140a"
+  ).toBuffer(32);
+  const pubRand7 = BigInteger.fromHex(
+    "4f232a010ff07ac9820273ed532b7681369c81561cb4f1e6a74fc4913966facd"
+  ).toBuffer(32);
+  const pubRand8 = BigInteger.fromHex(
+    "e6ac97b2639c3706e64594d7b724b1d99c8a326460d0bb0b92a67d4310581c1a"
+  ).toBuffer(32);
 
   // Build batch comprising of 4 leafs, from blocks 5 to 8
   const leaf5 = hash(["uint64", "bytes32"], [fromBlock, pubRand5]);
   const leaf6 = hash(["uint64", "bytes32"], [fromBlock + 1, pubRand6]);
   const leaf7 = hash(["uint64", "bytes32"], [fromBlock + 2, pubRand7]);
   const leaf8 = hash(["uint64", "bytes32"], [fromBlock + 3, pubRand8]);
-  const hash56 = hash(["bytes32", "bytes32"], [leaf5, leaf6]);
-  const hash78 = hash(["bytes32", "bytes32"], [leaf7, leaf8]);
-  const merkleRoot = hash(["bytes32", "bytes32"], [hash56, hash78]);
+  const hash56 = orderedHash(leaf5, leaf6);
+  const hash78 = orderedHash(leaf7, leaf8);
+  const merkleRoot = orderedHash(hash56, hash78);
 
   beforeEach(async function () {
     // Reset VM
@@ -83,7 +90,9 @@ describe("PubRandRegistry", function () {
     );
 
     // Sign message
-    const privRand = Buffer.from("random byte array with length 32"); // String has length 32 - do not change
+    const privRand = BigInteger.fromHex(
+      "18261145a75807f4543d82d61ca362ff85785fd3193c4ab72a848d2f70565b47"
+    ).toBuffer(32);
     const sig = sign(privKey, privRand, msg);
     const parity = pubKey[0] - 2 + 27;
     const px = pubKey.slice(1, 33);
