@@ -3,6 +3,10 @@
 pragma solidity ^0.8.20;
 
 interface IFPOracle {
+  /// @notice Get current L2 block number
+  /// @return blockNumber Current L2 block number
+  function getL2BlockNumber() external view returns (uint64);
+
   /// @notice Get total voting power of all finality providers for given chain and block height
   /// @param chainId Chain ID
   /// @param atBlock Block height

@@ -9,6 +9,8 @@ describe("MockFPOracle", function () {
 
   const chainId = 1;
   const fromBlock = 5;
+  const toBlock = 8;
+  const epochSize = toBlock - fromBlock + 1;
 
   before(async function () {
     // Deploy MockFPOracle contract
@@ -27,8 +29,25 @@ describe("MockFPOracle", function () {
         SchnorrLib: schnorrLib.address,
       },
     });
-    eotsVerifier = await EOTSVerifier.deploy(fpOracle.address);
+    eotsVerifier = await EOTSVerifier.deploy(
+      chainId,
+      fromBlock,
+      epochSize,
+      fpOracle.address
+    );
     await eotsVerifier.deployed();
+  });
+
+  it("should set and get L2 block", async function () {
+    const l2BlockNumber = 1000;
+
+    // Set voting power for total voting power
+    await fpOracle.setL2BlockNumber(l2BlockNumber);
+
+    // Get voting power
+    const result = await fpOracle.getL2BlockNumber();
+
+    expect(result).to.equal(l2BlockNumber);
   });
 
   it("should set and get total voting power", async function () {

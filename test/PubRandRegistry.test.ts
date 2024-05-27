@@ -26,6 +26,7 @@ describe("PubRandRegistry", function () {
   const chainId = 1;
   const fromBlock = 5;
   const toBlock = 8;
+  const epochSize = toBlock - fromBlock + 1;
 
   // Public randomness by block
   const pubRand5 = BigInteger.fromHex(
@@ -68,7 +69,12 @@ describe("PubRandRegistry", function () {
         SchnorrLib: schnorrLib.address,
       },
     });
-    eotsVerifier = await EOTSVerifier.deploy(fpOracle.address);
+    eotsVerifier = await EOTSVerifier.deploy(
+      chainId,
+      fromBlock,
+      epochSize,
+      fpOracle.address
+    );
     await eotsVerifier.deployed();
   });
 
@@ -81,11 +87,12 @@ describe("PubRandRegistry", function () {
     const pubKey = secp256k1.publicKeyCreate(privKey);
 
     // Define message
-    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    // keccak(epoch, fpBtcPublicKey, merkleRoot)
+    const epoch = 1;
     const msg = arrayify(
       ethers.utils.solidityKeccak256(
-        ["uint32", "bytes", "uint64", "uint64", "bytes32"],
-        [chainId, pubKey, fromBlock, toBlock, Buffer.from(merkleRoot)]
+        ["uint64", "bytes", "bytes32"],
+        [epoch, pubKey, Buffer.from(merkleRoot)]
       )
     );
 
@@ -104,13 +111,8 @@ describe("PubRandRegistry", function () {
     );
 
     // Commit pub rand batch
-    const batchKey = {
-      chainId,
-      fromBlock,
-      toBlock,
-    };
     await eotsVerifier.commitPubRandBatch(
-      batchKey,
+      epoch,
       pubKey,
       proofOfPossession,
       merkleRoot
@@ -119,7 +121,7 @@ describe("PubRandRegistry", function () {
     // Verify pub rand batch
     const proof = [Buffer.from(leaf6), Buffer.from(hash78)];
     const isValid = await eotsVerifier.verifyPubRandAtBlock(
-      batchKey,
+      epoch,
       pubKey,
       fromBlock,
       pubRand5,
@@ -137,11 +139,12 @@ describe("PubRandRegistry", function () {
     const pubKey = secp256k1.publicKeyCreate(privKey);
 
     // Define message
-    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    // keccak(epoch, fpBtcPublicKey, merkleRoot)
+    const epoch = 1;
     const msg = arrayify(
       ethers.utils.solidityKeccak256(
-        ["uint32", "bytes", "uint64", "uint64", "bytes32"],
-        [chainId, pubKey, fromBlock, toBlock, Buffer.from(merkleRoot)]
+        ["uint64", "bytes", "bytes32"],
+        [epoch, pubKey, Buffer.from(merkleRoot)]
       )
     );
 
@@ -159,14 +162,10 @@ describe("PubRandRegistry", function () {
     );
 
     // Try to commit pub rand batch
-    const batchKey = {
-      chainId,
-      fromBlock,
-      toBlock,
-    };
     expect(async () => {
+      const epoch = 1;
       await eotsVerifier.commitPubRandBatch(
-        batchKey,
+        epoch,
         pubKey,
         wrongProofOfPossession,
         merkleRoot
@@ -183,11 +182,12 @@ describe("PubRandRegistry", function () {
     const pubKey = secp256k1.publicKeyCreate(privKey);
 
     // Define message
-    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    // keccak(epoch, fpBtcPublicKey, merkleRoot)
+    const epoch = 1;
     const msg = arrayify(
       ethers.utils.solidityKeccak256(
-        ["uint32", "bytes", "uint64", "uint64", "bytes32"],
-        [chainId, pubKey, fromBlock, toBlock, Buffer.from(merkleRoot)]
+        ["uint64", "bytes", "bytes32"],
+        [epoch, pubKey, Buffer.from(merkleRoot)]
       )
     );
 
@@ -204,20 +204,15 @@ describe("PubRandRegistry", function () {
     );
 
     // Commit pub rand batch twice
-    const batchKey = {
-      chainId,
-      fromBlock,
-      toBlock,
-    };
     await eotsVerifier.commitPubRandBatch(
-      batchKey,
+      epoch,
       pubKey,
       wrongProofOfPossession,
       merkleRoot
     );
     expect(async () => {
       await eotsVerifier.commitPubRandBatch(
-        batchKey,
+        epoch,
         pubKey,
         wrongProofOfPossession,
         merkleRoot
@@ -234,11 +229,12 @@ describe("PubRandRegistry", function () {
     const pubKey = secp256k1.publicKeyCreate(privKey);
 
     // Define message
-    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    // keccak(epoch, fpBtcPublicKey, merkleRoot)
+    const epoch = 1;
     const msg = arrayify(
       ethers.utils.solidityKeccak256(
-        ["uint32", "bytes", "uint64", "uint64", "bytes32"],
-        [chainId, pubKey, fromBlock, toBlock, Buffer.from(merkleRoot)]
+        ["uint64", "bytes", "bytes32"],
+        [epoch, pubKey, Buffer.from(merkleRoot)]
       )
     );
 
@@ -255,13 +251,8 @@ describe("PubRandRegistry", function () {
     );
 
     // Commit pub rand batch
-    const batchKey = {
-      chainId,
-      fromBlock,
-      toBlock,
-    };
     await eotsVerifier.commitPubRandBatch(
-      batchKey,
+      epoch,
       pubKey,
       proofOfPossession,
       merkleRoot
@@ -270,7 +261,7 @@ describe("PubRandRegistry", function () {
     // Verify pub rand batch
     const proof = [Buffer.from(leaf6), Buffer.from(hash78)];
     const isValid = await eotsVerifier.verifyPubRandAtBlock(
-      batchKey,
+      epoch,
       pubKey,
       fromBlock,
       pubRand6, // wrong pub rand

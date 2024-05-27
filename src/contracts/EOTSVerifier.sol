@@ -2,13 +2,12 @@
 
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IEOTSVerifier } from "../interfaces/IEOTSVerifier.sol";
 import { IPubRandRegistry } from "../interfaces/IPubRandRegistry.sol";
 import { IFPOracle } from "../interfaces/IFPOracle.sol";
-import "../libraries/Batch.sol";
 import "../libraries/Leaf.sol";
 import "../libraries/Schnorr.sol";
 import "../libraries/EOTS.sol";
@@ -22,62 +21,69 @@ error PubRandMismatch();
 error DataEmpty();
 
 contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
-  using BatchLib for BatchKey;
   using LeafLib for Leaf;
   using SchnorrLib for bytes;
 
-  mapping(BatchId => mapping(bytes => bytes32)) public merkleRoots;
-  mapping(BatchId => mapping(bytes => uint64)) public lastCommittedBlocks;
+  // Chain ID
+  uint32 public immutable chainId;
+  // L2 block at which first epoch starts
+  uint64 public immutable startBlock;
+  // Number of blocks in an epoch
+  uint64 public immutable epochSize;
+  // Oracle contract for finality provider voting power
   IFPOracle public immutable fpOracle;
 
-  constructor(IFPOracle _fpOracle) {
+  // Mapping: epoch => fpBtcPublicKey => merkleRoot
+  mapping(uint64 => mapping(bytes => bytes32)) public merkleRoots;
+
+  constructor(uint32 _chainId, uint64 _startBlock, uint64 _epochSize, IFPOracle _fpOracle) {
+    chainId = _chainId;
+    startBlock = _startBlock;
+    epochSize = _epochSize;
     fpOracle = _fpOracle;
   }
 
   /// @notice Commit a batch of EOTS public randomness
-  /// @param batchKey Batch key
+  /// @param epoch Epoch number
   /// @param fpBtcPublicKey Finality provider btc public key
   /// @param proofOfPossession Signature to prove possession of finality provider btc key
   /// @param merkleRoot Merkle root of the batch
   function commitPubRandBatch(
-    BatchKey calldata batchKey,
+    uint64 epoch,
     bytes calldata fpBtcPublicKey,
     bytes calldata proofOfPossession,
     bytes32 merkleRoot
   ) external {
-    // Run validity checks
-    BatchId batchId = batchKey.toId();
-    uint64 lastCommittedBlock = lastCommittedBlocks[batchId][fpBtcPublicKey];
-    if (
-      batchKey.fromBlock >= batchKey.toBlock || batchKey.fromBlock < block.number
-        || batchKey.fromBlock <= lastCommittedBlock
-    ) {
+    // Fetch block ranges
+    uint64 toBlock = startBlock + epoch * epochSize - 1;
+    uint64 currL2Block = fpOracle.getL2BlockNumber();
+
+    // We disallow committing pub rand for an epoch that has ended
+    if (toBlock <= currL2Block) {
       revert InvalidBlockRange();
     }
 
     // Verify proof of possession of fp btc key
-    _verifyProofOfPossession(proofOfPossession, batchKey, fpBtcPublicKey, merkleRoot);
+    _verifyProofOfPossession(proofOfPossession, epoch, fpBtcPublicKey, merkleRoot);
 
     // Check if batch already exists
     // If not, write merkle root to storage
-    if (merkleRoots[batchId][fpBtcPublicKey] != bytes32(0)) {
+    if (merkleRoots[epoch][fpBtcPublicKey] != bytes32(0)) {
       revert DuplicateBatch();
     }
-    merkleRoots[batchId][fpBtcPublicKey] = merkleRoot;
+    merkleRoots[epoch][fpBtcPublicKey] = merkleRoot;
 
     // Emit event
-    emit CommitPubRandBatch(
-      batchKey.chainId, fpBtcPublicKey, batchKey.fromBlock, batchKey.toBlock, merkleRoot
-    );
+    emit CommitPubRandBatch(epoch, fpBtcPublicKey, merkleRoot);
   }
 
   /// @notice Verify caller's proof of possession of finality provider btc key
   /// @param proofOfPossession Signature to prove possession of finality provider btc key
-  /// @param batchKey Signed message
+  /// @param epoch Epoch number
   /// @param merkleRoot Merkle root of the batch
   function _verifyProofOfPossession(
     bytes memory proofOfPossession,
-    BatchKey memory batchKey,
+    uint64 epoch,
     bytes memory fpBtcPublicKey,
     bytes32 merkleRoot
   ) internal pure {
@@ -87,11 +93,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
     // Hash calldata and check it matches the signed message
     // TODO: confirm format of the signed message
     // For now, we use keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
-    bytes32 hashedMsg = keccak256(
-      abi.encodePacked(
-        batchKey.chainId, fpBtcPublicKey, batchKey.fromBlock, batchKey.toBlock, merkleRoot
-      )
-    );
+    bytes32 hashedMsg = keccak256(abi.encodePacked(epoch, fpBtcPublicKey, merkleRoot));
     if (hashedMsg != m) {
       revert MessageMismatch(hashedMsg, m);
     }
@@ -103,22 +105,21 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
   }
 
   /// @notice Verify EOTS public randomness committed by a finality provider at given block height
-  /// @param batchKey Batch key
+  /// @param epoch Epoch number
   /// @param fpBtcPublicKey Finality provider BTC public key
   /// @param atBlock Block number at which the public randomness was committed
   /// @param pubRand Committed public randomness
   /// @param merkleProof Merkle proof of the public number
   /// @return isValid Whether the public number is valid
   function verifyPubRandAtBlock(
-    BatchKey calldata batchKey,
+    uint64 epoch,
     bytes calldata fpBtcPublicKey,
     uint64 atBlock,
     bytes32 pubRand,
     bytes32[] calldata merkleProof
   ) public view returns (bool) {
     // Retrieve merkle root from storage
-    BatchId batchId = batchKey.toId();
-    bytes32 merkleRoot = merkleRoots[batchId][fpBtcPublicKey];
+    bytes32 merkleRoot = merkleRoots[epoch][fpBtcPublicKey];
 
     // Hash calldata to get leaf
     Leaf memory leaf = Leaf(atBlock, pubRand);
@@ -130,19 +131,22 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
 
   /// @notice Verify EOTS signatures from finality providers at given block height
   /// @notice Called by a client or rollup contract to provide fast finality
-  /// @param batchKey Batch key
+  /// @param epoch Epoch number
   /// @param atBlock Block height to verify
   /// @param outputRoot Output root of the block
   /// @param data EOTS data
   /// @return isFinal Whether the block is final
-  function verifyEots(
-    BatchKey calldata batchKey,
-    uint64 atBlock,
-    bytes32 outputRoot,
-    EOTSData[] calldata data
-  ) external view returns (bool) {
+  function verifyEots(uint64 epoch, uint64 atBlock, bytes32 outputRoot, EOTSData[] calldata data)
+    external
+    view
+    returns (bool)
+  {
+    // Fetch block ranges
+    uint64 fromBlock = startBlock + (epoch - 1) * epochSize;
+    uint64 toBlock = startBlock + epoch * epochSize - 1;
+
     // Perform validity checks
-    if (atBlock < batchKey.fromBlock || atBlock > batchKey.toBlock || atBlock > block.number) {
+    if (atBlock < fromBlock || atBlock > toBlock) {
       revert InvalidBlockRange();
     }
     if (data.length == 0) {
@@ -151,7 +155,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
 
     // Init voting power (VP) vars
     // We can consider the block final once signers comprising 2/3 of total VP have signed off
-    uint64 thresholdVotingPower = fpOracle.getVotingPower(batchKey.chainId, atBlock) * 2 / 3;
+    uint64 thresholdVotingPower = fpOracle.getVotingPower(chainId, atBlock) * 2 / 3;
     uint64 sumVotingPower = 0;
 
     // Loop through signers and:
@@ -163,7 +167,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
       // We expect m = outputRoot so use it in place of m to perform the check in the same step
       if (
         !verifyPubRandAtBlock(
-          batchKey, data[i].fpBtcPublicKey, atBlock, data[i].pubRand, data[i].merkleProof
+          epoch, data[i].fpBtcPublicKey, atBlock, data[i].pubRand, data[i].merkleProof
         )
       ) {
         revert PubRandMismatch();
@@ -173,8 +177,7 @@ contract EOTSVerifier is IPubRandRegistry, IEOTSVerifier {
       // Get voting power (VP) and add to sum
       // As above, we use outputRout in place of m
       if (SchnorrLib.verify(data[i].parity, data[i].px, outputRoot, data[i].e, data[i].sig)) {
-        sumVotingPower +=
-          fpOracle.getVotingPowerFor(batchKey.chainId, atBlock, data[i].fpBtcPublicKey);
+        sumVotingPower += fpOracle.getVotingPowerFor(chainId, atBlock, data[i].fpBtcPublicKey);
       }
 
       // To save gas, break early if we have enough voting power
