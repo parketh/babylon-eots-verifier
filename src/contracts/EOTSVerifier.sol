@@ -16,7 +16,6 @@ error InvalidBlockRange();
 error DuplicateBatch();
 error InvalidProofOfPossession();
 error MessageMismatch(bytes32 expected, bytes32 actual);
-error InvalidMerkleProof();
 error PubRandMismatch();
 error DataEmpty();
 
