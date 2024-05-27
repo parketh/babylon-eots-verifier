@@ -13,7 +13,7 @@ const BIP340Challenge = "BIP0340/challenge";
 class EOTS {
   /**
    * Generates private key on secp256k1 curve.
-   * @returns {BigInteger} privKey - Private key
+   * @returns {BigInteger} Private key
    */
   genKey(): BigInteger {
     let privKey: Buffer;
@@ -37,7 +37,7 @@ class EOTS {
   /**
    * Derives public key from a private key.
    * @param {BigInteger} privKey - Private key
-   * @returns {ecurve.Point} pubKey - Public key as point on curve
+   * @returns {ecurve.Point} Public key as point on curve
    */
   getPublicKeyAsPoint(privKey: BigInteger): ecurve.Point {
     return curve.G.multiply(privKey);
@@ -46,7 +46,7 @@ class EOTS {
   /**
    * Derives public key from a private key.
    * @param {BigInteger} privKey - Private key
-   * @returns {BigInteger} pubKey - Public key
+   * @returns {Buffer} Public key
    */
   getPublicKey(privKey: BigInteger): Buffer {
     const pubKeyPoint = this.getPublicKeyAsPoint(privKey);
@@ -55,8 +55,8 @@ class EOTS {
 
   /**
    * Get parity of public key.
-   * @param {BigInteger} privKey - Private key
-   * @returns {ecurve.Point} pubKey - Public key as point on curve
+   * @param {ecurve.Point} pubKey - Public key as point on curve
+   * @returns {number} parity - Parity of public key
    */
   getParity(pubKey: ecurve.Point): number {
     const pubKeyBytes = this._serializeCompressed(pubKey);
@@ -65,7 +65,7 @@ class EOTS {
 
   /**
    * Signs a message using EOTS.
-   * @param {BigInteger} privKey - Private key
+   * @param {BigInteger} privKey_ - Private key
    * @param {BigInteger} privRand - Private randomness
    * @param {Buffer} msg - Message to sign
    * @returns {{ e: BigInteger; s: BigInteger }} - Commitment and signature
@@ -179,13 +179,13 @@ class EOTS {
 
   /**
    * Extract private key from two EOTS signatures.
-   * @param {BigInteger} pubKey - Public key
+   * @param {ecurve.Point} pubKey - Public key
    * @param {BigInteger} pubRand - Public randomness
    * @param {Buffer} msg1 - First message
-   * @param {string} sig1 - First signature
+   * @param {BigInteger} sig1 - First signature
    * @param {Buffer} msg2 - Second message
-   * @param {string} sig2 - Second signature
-   * @returns {BigInteger} privKey - Extracted private key
+   * @param {BigInteger} sig2 - Second signature
+   * @returns {BigInteger} Extracted private key
    */
   extract(
     pubKey: ecurve.Point,
@@ -242,7 +242,7 @@ class EOTS {
   /**
    * Internal function to hash a message using SHA-256.
    * @param {Buffer} msg - Message to hash
-   * @returns {Buffer} hash - Hash of message
+   * @returns {Buffer} Hash of message
    */
   _hash(msg: Buffer): Buffer {
     return crypto.createHash("sha256").update(msg).digest();
@@ -252,7 +252,7 @@ class EOTS {
    * Internal function implementing the tagged hash scheme described in BIP-340.
    * @param {string} tag - Tag for hash
    * @param {Buffer[]} msgs - Array of messages to hash
-   * @returns {Buffer} hash - Hash of messages
+   * @returns {Buffer} Hash of messages
    */
   _taggedHash(tag: string, msgs: Buffer[]): Buffer {
     const shaTag = crypto.createHash("sha256").update(tag).digest();
@@ -269,7 +269,7 @@ class EOTS {
   /**
    * Internal function to serialize a public key point to compressed format.
    * @param {ecurve.Point} pubKey - Public key as point on curve
-   * @returns {Buffer} pubKeyBytes - Public key in compressed format
+   * @returns {Buffer} Public key in compressed format
    */
   _serializeCompressed(pubKey: ecurve.Point): Buffer {
     const x = pubKey.affineX;

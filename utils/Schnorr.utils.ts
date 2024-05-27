@@ -8,16 +8,9 @@ import {
   publicKeyConvert,
 } from "secp256k1";
 import BigInteger from "bigi";
-import ecurve from "ecurve";
-import {
-  bytesToBigInt64,
-  bytesToHex,
-  ecrecover,
-  hexToBytes,
-} from "@ethereumjs/util";
+import { bytesToHex, ecrecover, hexToBytes } from "@ethereumjs/util";
 
 const arrayify = ethers.utils.arrayify;
-const curve = ecurve.getCurveByName("secp256k1");
 
 const Q = BigInteger.fromHex(
   "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"
@@ -26,6 +19,13 @@ const HALF_Q = BigInteger.fromHex(
   "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0"
 );
 
+/**
+ * Sign a message using the Schnorr signature scheme.
+ * @param {Uint8Array} privKey - Private key
+ * @param {Uint8Array} privRand - Private randomness
+ * @param {Uint8Array} msg - Message to sign
+ * @returns {{ R: Uint8Array, s: Uint8Array, e: Uint8Array }} - Public randomness, commitment and signature
+ */
 const sign = (
   privKey: Uint8Array,
   privRand: Uint8Array,
@@ -47,6 +47,16 @@ const sign = (
   return { R, s, e };
 };
 
+/**
+ * Verify a message signed using the Schnorr signature scheme.
+ * @param {number} parity - Parity of the public key
+ * @param {Uint8Array} pubKeyX - X-coordinate of the public key
+ * @param {Uint8Array} msg - Message
+ * @param {Uint8Array} R - Public randomness
+ * @param {Uint8Array} s - Signature
+ * @param {Uint8Array} e - Commitment
+ * @returns {boolean} - If the signature is valid
+ */
 const verify = (
   parity: number,
   pubKeyX: Uint8Array,
@@ -100,6 +110,13 @@ const verify = (
   );
 };
 
+/**
+ * Compute the commitment for a message.
+ * @param {Uint8Array} pubRand - Public randomness
+ * @param {Uint8Array} msg - Message
+ * @param {Uint8Array} pubKey - Public key
+ * @returns {Uint8Array} - Commitment
+ */
 const commitment = (
   pubRand: Uint8Array,
   msg: Uint8Array,
@@ -123,6 +140,11 @@ const commitment = (
   return e;
 };
 
+/**
+ * Add the 0x prefix to an address if it is missing.
+ * @param {string} addr - Address
+ * @returns {string} - Address with enforced prefix
+ */
 const enforcePrefix = (addr: string): string => {
   let address = addr.toLowerCase();
   if (addr.startsWith("0x")) {
@@ -135,12 +157,23 @@ const enforcePrefix = (addr: string): string => {
   return "0x" + address;
 };
 
+/**
+ * Keccak256 hash a list of values.
+ * @param {string[]} types - Types of values
+ * @param {any[]} values - Values to hash
+ * @returns {Uint8Array} - Hash
+ */
 const hash = (types: string[], values: any[]): Uint8Array => {
   return arrayify(
     ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(types, values))
   );
 };
 
+/** Keccak256 hash two values, first ordering them.
+ * @param {Buffer | Uint8Array} valueA - First value
+ * @param {Buffer | Uint8Array} valueB - Second value
+ * @returns {Uint8Array} - Hash
+ */
 const orderedHash = (
   valueA: Buffer | Uint8Array,
   valueB: Buffer | Uint8Array
@@ -150,7 +183,13 @@ const orderedHash = (
     : hash(["bytes32", "bytes32"], [valueB, valueA]);
 };
 
-const encode = (types: string[], values: any[]) => {
+/**
+ * ABI encodes a list of values.
+ * @param {string[]} types - Types of values
+ * @param {any[]} values - Values to encode
+ * @returns {string} - Encoded values
+ */
+const encode = (types: string[], values: any[]): string => {
   return ethers.utils.defaultAbiCoder.encode(types, values);
 };
 
