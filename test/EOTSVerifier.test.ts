@@ -15,6 +15,7 @@ describe("EOTSVerifier", function () {
     const chainId = 1;
     const fromBlock = 5;
     const toBlock = 8;
+    const epochSize = toBlock - fromBlock + 1;
 
     // Deploy contracts
     const FPOracle = await ethers.getContractFactory("MockFPOracle");
@@ -30,7 +31,12 @@ describe("EOTSVerifier", function () {
         SchnorrLib: schnorrLib.address,
       },
     });
-    const eotsVerifier = await EOTSVerifier.deploy(fpOracle.address);
+    const eotsVerifier = await EOTSVerifier.deploy(
+      chainId,
+      fromBlock,
+      epochSize,
+      fpOracle.address
+    );
     await eotsVerifier.deployed();
 
     // Create EOTS helper
@@ -87,11 +93,12 @@ describe("EOTSVerifier", function () {
     const merkleRoot = orderedHash(hash56, hash78);
 
     // Define message
-    // keccak(chainId, fpBtcPublicKey, fromBlock, toBlock, merkleRoot)
+    // keccak(epoch, fpBtcPublicKey, merkleRoot)
+    const epoch = 1;
     const msg = arrayify(
       ethers.utils.solidityKeccak256(
-        ["uint32", "bytes", "uint64", "uint64", "bytes32"],
-        [chainId, pubKey, fromBlock, toBlock, Buffer.from(merkleRoot)]
+        ["uint64", "bytes", "bytes32"],
+        [epoch, pubKey, Buffer.from(merkleRoot)]
       )
     );
 
@@ -107,19 +114,15 @@ describe("EOTSVerifier", function () {
     );
 
     // Commit pub rand batch
-    const batchKey = {
-      chainId,
-      fromBlock,
-      toBlock,
-    };
     await eotsVerifier.commitPubRandBatch(
-      batchKey,
+      1,
       pubKey,
       proofOfPossession,
       merkleRoot
     );
 
     // Set voting power for single FP.
+    await fpOracle.setL2BlockNumber(4);
     await fpOracle.setVotingPower(1, 5, 100);
     await fpOracle.setVotingPowerFor(1, 5, pubKey, 100);
 
@@ -148,6 +151,6 @@ describe("EOTSVerifier", function () {
       e: arrayify(e5.toBuffer(32)),
       sig: arrayify(sig5.toBuffer(32)),
     };
-    await eotsVerifier.verifyEots(batchKey, 5, outputRoot, [eotsData]);
+    await eotsVerifier.verifyEots(epoch, 5, outputRoot, [eotsData]);
   });
 });
